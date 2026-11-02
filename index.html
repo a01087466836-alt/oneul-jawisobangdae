@@ -1,0 +1,928 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>오늘의 자위소방대 프로토타입</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: 위 띠(서비스명·시나리오 탭) → 왼쪽 '지금 일어나는 일' 안내 + 오른쪽 기기 화면(휴대폰·관리 화면) 무대. 좁은 화면에서는 위아래로 쌓임 */
+:root{
+  --paper:#EEF1F0; --card:#FFFFFF; --ink:#15202A; --muted:#55616B; --line:#D3DADF; --soft:#F5F7F7;
+  --system:#0B746C; --system-ink:#FFFFFF; --system-soft:#DCF0ED;
+  --fire:#C2391E; --fire-ink:#FFFFFF; --fire-soft:#FBE5DF;
+  --warn:#946000; --warn-soft:#FFF0C2; --warn-line:#E8C35A;
+  --ok:#25714A; --ok-soft:#DFF0E5;
+  --bezel:#1A222A; --chip:#EAEFF1; --focus:#2563EB;
+  --font:"Noto Sans KR","Noto Sans CJK KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1316; --card:#161E23; --ink:#E5EBEE; --muted:#9AA6AE; --line:#2B363D; --soft:#11181C;
+    --system:#3BBFB2; --system-ink:#06201D; --system-soft:#12302D;
+    --fire:#FF7155; --fire-ink:#2A0A04; --fire-soft:#3A1913;
+    --warn:#F0C14B; --warn-soft:#3A2F10; --warn-line:#8A6D1E;
+    --ok:#62C98E; --ok-soft:#123020;
+    --bezel:#05080A; --chip:#222C32; --focus:#7AA2FF; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1316; --card:#161E23; --ink:#E5EBEE; --muted:#9AA6AE; --line:#2B363D; --soft:#11181C;
+  --system:#3BBFB2; --system-ink:#06201D; --system-soft:#12302D;
+  --fire:#FF7155; --fire-ink:#2A0A04; --fire-soft:#3A1913;
+  --warn:#F0C14B; --warn-soft:#3A2F10; --warn-line:#8A6D1E;
+  --ok:#62C98E; --ok-soft:#123020;
+  --bezel:#05080A; --chip:#222C32; --focus:#7AA2FF; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--paper);color:var(--ink)}
+body{font-family:var(--font);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:anywhere}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* 위 띠 */
+.top{background:var(--card);border-bottom:1px solid var(--line)}
+.top-in{max-width:1320px;margin:0 auto;padding-block:14px 0}
+.brand{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px}
+.brand h1{font-size:22px;font-weight:900;letter-spacing:-.02em;margin:0;text-wrap:balance}
+.brand .sub{color:var(--muted);font-size:14px}
+.demo-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--warn);background:var(--warn-soft);border:1px solid var(--warn-line);border-radius:999px;padding:2px 10px}
+.tabs{display:flex;gap:4px;overflow-x:auto;margin-top:12px;scrollbar-width:thin}
+.tab{border:0;background:transparent;padding:10px 14px 12px;border-bottom:3px solid transparent;white-space:nowrap;color:var(--muted);font-weight:700}
+.tab .n{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--chip);color:var(--ink);font-size:12px;margin-right:6px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+.tab[aria-selected="true"] .n{background:var(--ink);color:var(--card)}
+
+/* 본문 */
+main{max-width:1320px;margin:0 auto;padding-block:18px 28px}
+.stage{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.stage{grid-template-columns:minmax(0,1fr)}}
+.guide{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.steps{display:flex;flex-wrap:wrap;gap:6px}
+.stepdot{border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:4px 9px;font-size:12px;font-weight:700;color:var(--muted)}
+.stepdot[aria-current="step"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.guide .time{font-size:13px;color:var(--muted);font-weight:700}
+.guide h2{font-size:20px;line-height:1.35;margin:2px 0 0;text-wrap:balance}
+.guide .who{font-size:13px;color:var(--muted)}
+.guide p{margin:0}
+.what{display:flex;flex-direction:column;gap:8px}
+.basis{border-top:1px dashed var(--line);padding-top:12px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.basis b{color:var(--ink);font-size:12px;letter-spacing:.04em}
+.nav{display:flex;gap:8px}
+.nav button{flex:1;border:1px solid var(--line);background:var(--soft);border-radius:10px;padding:10px;font-weight:700}
+.nav button.next{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.nav button:disabled{opacity:.4;cursor:default}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid var(--line)}
+.sw.sys{background:var(--system-soft);border-color:var(--system)}
+.sw.hum{background:var(--card)}
+.sw.chg{background:var(--warn-soft);border-color:var(--warn-line)}
+.sw.fir{background:var(--fire-soft);border-color:var(--fire)}
+
+.devices{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;justify-content:center;min-width:0}
+
+/* 휴대폰 */
+.phone{width:360px;max-width:100%;background:var(--bezel);border-radius:34px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.phone-label{color:#C9D2D8;font-size:12px;text-align:center;padding:2px 0 8px;font-weight:700}
+.screen{background:var(--card);border-radius:24px;overflow:hidden;min-height:640px;display:flex;flex-direction:column}
+.status{display:flex;justify-content:space-between;padding:8px 18px 4px;font-size:12px;font-weight:700;color:var(--muted)}
+.app{flex:1;display:flex;flex-direction:column;gap:12px;padding:6px 16px 18px}
+.appbar{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.appbar .ttl{font-size:13px;color:var(--muted);font-weight:700}
+.appbar .ttl b{color:var(--ink)}
+.bigname{font-size:24px;font-weight:900;letter-spacing:-.02em;line-height:1.2}
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;background:var(--chip);color:var(--ink)}
+.chip.sys{background:var(--system-soft);color:var(--system)}
+.chip.fire{background:var(--fire-soft);color:var(--fire)}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:14px 16px;font-size:17px;font-weight:700;text-align:center;width:100%}
+.btn.primary{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.btn.sys{background:var(--system);color:var(--system-ink);border-color:var(--system)}
+.btn.fire{background:var(--fire);color:var(--fire-ink);border-color:var(--fire)}
+.btn.ghost{background:transparent}
+.btn.sm{font-size:14px;padding:9px 12px;border-radius:10px;width:auto}
+.row{display:flex;gap:8px}
+.row>*{flex:1;min-width:0}
+.band{background:var(--warn-soft);border:1px solid var(--warn-line);border-radius:12px;padding:10px 12px;font-size:14px}
+.band b{display:block;color:var(--warn);font-size:13px}
+.sysbox{background:var(--system-soft);border:1px solid var(--system);border-radius:12px;padding:10px 12px;font-size:14px}
+.sysbox b{color:var(--system)}
+.firebox{background:var(--fire-soft);border:1px solid var(--fire);border-radius:12px;padding:10px 12px;font-size:14px}
+.card{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--card)}
+.role{font-size:21px;font-weight:900;letter-spacing:-.02em}
+.lines{display:flex;flex-direction:column;gap:8px}
+.line{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;align-items:start;border:1px solid var(--line);border-radius:12px;padding:10px}
+.line .k{width:30px;height:30px;border-radius:9px;background:var(--ink);color:var(--card);display:grid;place-items:center;font-weight:900}
+.line .h{font-weight:900;font-size:16px}
+.line .d{font-size:14px;color:var(--muted)}
+.line.done{background:var(--ok-soft);border-color:transparent}
+.line.done .k{background:var(--ok)}
+.line.miss{background:var(--fire-soft);border-color:var(--fire)}
+.line.miss .k{background:var(--fire)}
+.small{font-size:12px;color:var(--muted)}
+.list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.list .it{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border-top:1px solid var(--line)}
+.list .it:first-child{border-top:0}
+.room{font-weight:900;font-size:15px}
+.mob{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;border-radius:8px;padding:2px 8px}
+.mob.walk{background:var(--chip)}
+.mob.assist{background:var(--warn-soft);color:var(--warn)}
+.mob.wheel{background:var(--warn-soft);color:var(--warn)}
+.mob.bed{background:var(--fire-soft);color:var(--fire)}
+.appfoot{margin-top:auto;display:flex;flex-direction:column;gap:8px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;font-size:11px;text-align:center}
+.cal .h{color:var(--muted);font-weight:700}
+.cal .d{border-radius:7px;padding:4px 0;background:var(--soft);line-height:1.2}
+.cal .d.n{background:#1F2A35;color:#E8EEF2}
+.cal .d.off{color:var(--muted)}
+.cal .d.today{outline:2px solid var(--fire);outline-offset:-2px}
+.mapbox{border:1px solid var(--line);border-radius:12px;padding:6px;background:var(--soft)}
+.mapbox svg{display:block;width:100%;height:auto}
+.timer{font-size:46px;font-weight:900;letter-spacing:-.02em;text-align:center}
+.wave{display:flex;gap:3px;align-items:center;justify-content:center;height:40px}
+.wave i{width:5px;border-radius:3px;background:var(--system);height:10px;animation:w 0.9s ease-in-out infinite}
+.wave i:nth-child(2){animation-delay:.1s}.wave i:nth-child(3){animation-delay:.2s}.wave i:nth-child(4){animation-delay:.3s}.wave i:nth-child(5){animation-delay:.4s}.wave i:nth-child(6){animation-delay:.5s}.wave i:nth-child(7){animation-delay:.6s}
+@keyframes w{0%,100%{height:8px}50%{height:34px}}
+@media (prefers-reduced-motion:reduce){.wave i{animation:none;height:20px}}
+.say{display:flex;flex-direction:column;gap:6px}
+.say button{border:1px dashed var(--line);background:var(--soft);border-radius:10px;padding:8px 10px;text-align:left;font-size:14px}
+.say button:disabled{opacity:.45;cursor:default}
+.field{display:flex;gap:6px}
+.field input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:9px 10px;font:inherit;background:var(--card);color:var(--ink)}
+.parsed{display:flex;flex-wrap:wrap;gap:6px}
+
+/* 관리·상황 화면 */
+.desk{flex:1 1 640px;min-width:0;max-width:980px;background:var(--bezel);border-radius:16px;padding:10px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.desk-bar{display:flex;align-items:center;gap:8px;color:#C9D2D8;font-size:12px;font-weight:700;padding:2px 6px 8px}
+.desk-bar i{width:9px;height:9px;border-radius:50%;background:#56616B;display:inline-block}
+.desk-screen{background:var(--card);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.dhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:6px 12px}
+.dhead h3{margin:0;font-size:19px;font-weight:900;letter-spacing:-.02em}
+.dhead .meta{font-size:13px;color:var(--muted)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px}
+.panel{border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.panel h4{margin:0;font-size:14px;font-weight:900}
+.kpi{font-size:30px;font-weight:900;letter-spacing:-.02em;line-height:1.1}
+.kpi small{font-size:14px;color:var(--muted);font-weight:700}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table.t{border-collapse:collapse;width:100%;font-size:13px;min-width:520px}
+table.t th,table.t td{border-top:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+table.t thead th{background:var(--soft);border-top:0;font-size:12px;color:var(--muted);white-space:nowrap}
+table.t td.c,table.t th.c{text-align:center}
+table.t tr.sys td{background:var(--system-soft)}
+table.t tr.chg td{background:var(--warn-soft)}
+.grid{display:grid;gap:2px;font-size:11px}
+.grid .gh{color:var(--muted);text-align:center;font-weight:700}
+.grid .gn{font-weight:700;white-space:nowrap;padding-right:6px}
+.grid .gc{text-align:center;border-radius:4px;padding:3px 0;background:var(--soft)}
+.grid .gc.N{background:#1F2A35;color:#E8EEF2}
+.grid .gc.D{background:var(--chip)}
+.grid .gc.flag{outline:2px solid var(--fire);outline-offset:-2px;background:var(--fire-soft);color:var(--fire);font-weight:900;cursor:pointer}
+.grid .gc.fixed{outline:2px solid var(--system);outline-offset:-2px}
+.grid button.gc{border:0;font:inherit;width:100%}
+.mcal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.mcal .h{font-size:12px;color:var(--muted);font-weight:700;text-align:center}
+.mday{border:1px solid var(--line);border-radius:8px;padding:5px 6px;font-size:11px;min-height:58px;background:var(--card);text-align:left;display:flex;flex-direction:column;gap:2px}
+.mday .dn{font-weight:900;font-size:12px}
+.mday.flag{background:var(--fire-soft);border-color:var(--fire)}
+.mday.fixed{background:var(--system-soft);border-color:var(--system)}
+.mday.sel{outline:3px solid var(--ink);outline-offset:-1px}
+.mday.empty{background:transparent;border-color:transparent}
+button.mday{cursor:pointer}
+.slider{display:flex;align-items:center;gap:10px;font-size:13px}
+.slider input{flex:1;accent-color:var(--system)}
+.bar{height:10px;border-radius:6px;background:var(--chip);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--system)}
+.bar.over i{background:var(--fire)}
+.log{display:flex;flex-direction:column;gap:6px;font-size:13px}
+.log .e{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px}
+.log .e .tm{font-weight:900;color:var(--muted)}
+.floor{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.floor .fl{font-weight:900;font-size:18px}
+.floor.alert{border-color:var(--fire);background:var(--fire-soft)}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--fire)}
+.live::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--fire);display:inline-block}
+.formhead{display:flex;flex-wrap:wrap;gap:6px}
+.formhead button{border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:6px 10px;font-size:13px;font-weight:700}
+.formhead button[aria-pressed="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.paper{border:1px solid var(--line);border-radius:6px;padding:14px;background:var(--card)}
+.paper .fttl{text-align:center;font-weight:900;font-size:15px;margin-bottom:8px}
+.note{font-size:12px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--card);padding:10px 16px;border-radius:10px;font-size:14px;font-weight:700;z-index:20;max-width:calc(100% - 32px)}
+.intro{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:10px 24px;font-size:14px}
+@media (max-width:900px){.intro{grid-template-columns:minmax(0,1fr)}}
+.intro p{margin:0}
+.intro ul{margin:0;padding-left:18px;color:var(--muted)}
+footer{max-width:1320px;margin:0 auto;padding-block:0 30px;font-size:12px;color:var(--muted)}
+.shot .phone,.shot .desk{box-shadow:none}
+</style>
+
+<div class="top"><div class="top-in wrap">
+  <div class="brand">
+    <h1>오늘의 자위소방대</h1>
+    <span class="sub">교대근무 연동형 피난약자시설 초기대응 서비스 · 클릭형 프로토타입</span>
+    <span class="demo-tag">가상 시설·가상 인물·가상 숫자</span>
+  </div>
+  <div class="tabs" role="tablist" id="tabs"></div>
+</div></div>
+
+<main class="wrap">
+  <section class="intro" id="intro">
+    <p><b>무엇을 보여 주나</b> — 요양원 근무표에 자위소방대 임무를 얹어, 근무자는 출근할 때 '오늘 내 임무'를 보고, 불이 나면 남은 분을 음성으로 입력해 관계인과 관할 소방이 같은 화면을 봅니다. 위 탭에서 장면을 고르고 <b>다음</b>(또는 키보드 →)으로 넘기세요. 화면 안 버튼도 눌러 볼 수 있습니다.</p>
+    <ul>
+      <li>결원 때 임무 다시 나누기·빈자리 추천·야간 피난 부담과 짝 판정은 이 페이지 안의 규칙 코드로 실제 계산합니다(관리자 장면에서 기준값을 바꿔 보세요). 조별 기본 임무와 근무표 판독 결과는 미리 넣은 가상 값입니다.</li>
+      <li>근무표 사진 판독(AI)과 음성 인식은 시연용으로 흉내 냅니다. 음성은 예시 문장을 고르거나 직접 입력하면 규칙으로 정리합니다.</li>
+      <li>공유·알림·비상 호출·119 전화는 화면으로만 보여 주며 실제로 보내지 않습니다.</li>
+      <li>이 페이지에서 누른 내용은 저장되지 않습니다. 새로고침하거나 다른 기기에서 열면 처음 상태로 돌아갑니다.</li>
+    </ul>
+  </section>
+  <section class="stage">
+    <aside class="guide" id="guide" aria-live="polite"></aside>
+    <div class="devices" id="devices"></div>
+  </section>
+</main>
+<footer class="wrap">
+  시나리오의 시설·인물·숫자는 가상 예시입니다(‘근거 · 서식’ 칸의 법령·연구 인용은 실제 출처). 서식 번호는 소방청·한국소방안전원 「[의료,보호용도] 소방계획서 서식」, 법령은 「화재의 예방 및 안전관리에 관한 법률」과 같은 법 시행규칙을 가리킵니다. 팀 AI브랜드 · 2026 AI·디지털 기반 사회문제 해결 챌린지 아이디어 발굴 부문.
+</footer>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+'use strict';
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let toastTimer = null;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600); }
+
+/* ===================== 가상 데이터 ===================== */
+const FAC = {
+  name: '가상 ○○요양원', kind: '노인요양시설 · 입소 19명(가상)',
+  addr: '인천광역시 ○○구 ○○로 00 (가상 주소)', station: '관할 ○○소방서(가상)',
+};
+const MOB = {
+  walk:   { label: '혼자 걸음',     short: '혼자',   help: false },
+  assist: { label: '부축하면 걸음', short: '부축',   help: true },
+  wheel:  { label: '휠체어',        short: '휠체어', help: true },
+  bed:    { label: '침상째 이동',   short: '침상',   help: true, pair: true },
+};
+const RES = [
+  { room:'101', floor:1, name:'황○○', mob:'walk' }, { room:'101', floor:1, name:'곽○○', mob:'walk' },
+  { room:'102', floor:1, name:'노○○', mob:'wheel', aid:'휠체어(침대 옆)' }, { room:'102', floor:1, name:'하○○', mob:'walk' },
+  { room:'103', floor:1, name:'선○○', mob:'walk' }, { room:'103', floor:1, name:'변○○', mob:'assist' },
+  { room:'104', floor:1, name:'명○○', mob:'walk' }, { room:'104', floor:1, name:'방○○', mob:'walk' },
+  { room:'105', floor:1, name:'성○○', mob:'walk' }, { room:'105', floor:1, name:'탁○○', mob:'walk' },
+  { room:'106', floor:1, name:'진○○', mob:'walk' },
+  { room:'201', floor:2, name:'이○○', mob:'bed', aid:'대피용 매트(복도 벽장)' }, { room:'201', floor:2, name:'안○○', mob:'walk' },
+  { room:'202', floor:2, name:'박○○', mob:'wheel', aid:'휠체어(침대 옆)' }, { room:'202', floor:2, name:'유○○', mob:'walk' },
+  { room:'203', floor:2, name:'최○○', mob:'assist' }, { room:'203', floor:2, name:'전○○', mob:'walk' },
+  { room:'204', floor:2, name:'정○○', mob:'walk' }, { room:'204', floor:2, name:'고○○', mob:'assist' },
+];
+const STAFF = {
+  song:{ name:'송○○', job:'시설장 · 소방안전관리자', day:true },
+  oh:  { name:'오○○', job:'간호조무사', day:true },
+  kim: { name:'김○○', job:'요양보호사', cap:'pair', dist:25 },
+  han: { name:'한○○', job:'요양보호사', cap:'solo', dist:15 },
+  yoon:{ name:'윤○○', job:'요양보호사', cap:'pair', dist:20 },
+  jang:{ name:'장○○', job:'요양보호사', cap:'solo', dist:30 },
+  nam: { name:'남○○', job:'요양보호사', cap:'hard', dist:12 },
+  lim: { name:'임○○', job:'요양보호사', cap:'solo', dist:8 },
+  moon:{ name:'문○○', job:'요양보호사', cap:'pair', dist:18 },
+  bae: { name:'배○○', job:'요양보호사', cap:'solo', dist:22 },
+  hong:{ name:'홍○○', job:'요양보호사', cap:'solo', dist:10 },
+};
+const CAP = { solo:'혼자 옮길 수 있음', pair:'둘이면 옮길 수 있음', hard:'옮기기 어려움' };
+const CAPRANK = { solo:0, pair:1, hard:2 };
+/* 야간조: f1 = 1층, f2a = 2층 피난유도(201~204호), f2b = 2층 초기소화·짝 */
+const CREWS = { A:{ f1:'yoon', f2a:'han', f2b:'kim' }, B:{ f1:'jang', f2a:'nam', f2b:'lim' }, C:{ f1:'moon', f2a:'bae', f2b:'hong' } };
+const crewOf = day => ['A','B','C'][((day - 2) % 3 + 3) % 3];
+const DOW = ['일','월','화','수','목','금','토'];
+const POS = {
+  f1:  { floor:1, label:'1층', tasks:['통보연락','초기소화','피난유도'], rooms:['101','102','103','104','105','106'] },
+  f2a: { floor:2, label:'2층', tasks:['피난유도'], rooms:['201','202','203','204'] },
+  f2b: { floor:2, label:'2층', tasks:['초기소화'], rooms:[] },
+};
+
+/* ===================== 규칙엔진 ===================== */
+/* 근무 단위 편성: 결원이 있으면 같은 층 → 임무 수 적은 순으로 임무를 넘기고, 층별 피난 부담과 짝(2인 1조)을 판정한다 */
+function planNight(day, absent = [], added = []){
+  const crew = CREWS[crewOf(day)];
+  const slots = Object.entries(crew).map(([pos, id]) => ({ pos, id, ...POS[pos], tasks:[...POS[pos].tasks], rooms:[...POS[pos].rooms], moved:[] }));
+  added.forEach(a => slots.push({ pos:'extra', id:a.id, floor:a.floor, label:a.floor + '층', tasks:['피난유도 짝'], rooms:[], moved:[], extra:true }));
+  const working = slots.filter(s => !absent.includes(s.id));
+  const moves = [];
+  slots.filter(s => absent.includes(s.id)).forEach(gone => {
+    const cands = working
+      .map(w => ({ w, same: w.floor === gone.floor ? 0 : 1, load: w.tasks.length, cap: CAPRANK[STAFF[w.id].cap] }))
+      .sort((a, b) => a.same - b.same || a.load - b.load || a.cap - b.cap);
+    const to = cands[0] && cands[0].w;
+    if (to){
+      gone.tasks.forEach(t => { if (!to.tasks.includes(t)) to.tasks.push(t); });
+      to.rooms = [...new Set([...to.rooms, ...gone.rooms])].sort();
+      to.moved.push({ from: gone.id, tasks: gone.tasks, rooms: gone.rooms });
+      moves.push({ from: gone.id, to: to.id, tasks: gone.tasks, rooms: gone.rooms,
+        why: [cands[0].same === 0 ? '같은 층' : '다른 층', '현재 임무 ' + (cands[0].load) + '개', '체력 신고 \'' + CAP[STAFF[to.id].cap] + '\''] });
+    }
+  });
+  const floors = [1, 2].map(f => {
+    const needHelp = RES.filter(r => r.floor === f && MOB[r.mob].help).length;
+    const needPair = RES.filter(r => r.floor === f && MOB[r.mob].pair).length;
+    const staff = working.filter(w => w.floor === f).length;
+    return { floor: f, needHelp, needPair, staff, ratio: staff ? needHelp / staff : Infinity, pairOk: needPair === 0 || staff >= 2 };
+  });
+  return { day, crew: crewOf(day), slots, working, moves, floors };
+}
+function judge(plan, threshold){
+  const warns = [];
+  plan.floors.forEach(f => {
+    if (f.staff === 0) warns.push({ lvl:'fire', floor:f.floor, text: f.floor + '층 야간 근무자 없음' });
+    else {
+      if (f.ratio > threshold) warns.push({ lvl:'fire', floor:f.floor, text: f.floor + '층 야간 피난 부담 ' + f.ratio.toFixed(1) + '명/인 (기준 ' + threshold.toFixed(1) + ' 초과)' });
+      if (!f.pairOk) warns.push({ lvl:'warn', floor:f.floor, text: f.floor + '층 침상째 이동 어르신 ' + f.needPair + '명 · 2인 1조 짝 없음 → 비상 호출 대상 지정' });
+    }
+  });
+  return warns;
+}
+/* 근무 조정 후보: 그날 야간조가 아닌 사람, 전날 밤 근무자는 뒤로, 체력 신고·거리 순 */
+function swapCandidates(day){
+  const tonight = Object.values(CREWS[crewOf(day)]);
+  const prev = Object.values(CREWS[crewOf(day - 1)]);
+  const next = Object.values(CREWS[crewOf(day + 1)]);
+  return Object.keys(STAFF).filter(id => !STAFF[id].day && !tonight.includes(id))
+    .map(id => ({ id, rest: prev.includes(id) ? 1 : 0, nextNight: next.includes(id), cap: CAPRANK[STAFF[id].cap], dist: STAFF[id].dist }))
+    .sort((a, b) => a.rest - b.rest || a.cap - b.cap || a.dist - b.dist);
+}
+/* 음성 문장 정리(시연): 호실·인원·거동 상태·구조 요함을 뽑는다 */
+const KNUM = { '한':1, '하나':1, '두':2, '둘':2, '세':3, '셋':3, '네':4, '넷':4, '다섯':5 };
+function parseUtterance(text){
+  const t = String(text || '');
+  const rooms = [...t.matchAll(/(\d{3})\s*호/g)].map(m => m[1]);
+  let count = null;
+  const m1 = t.match(/(\d+)\s*(명|분)/); const m2 = t.match(/(?:^|\s)(한|하나|두|둘|세|셋|네|넷|다섯)\s*(명|분)/);
+  if (m1) count = +m1[1]; else if (m2) count = KNUM[m2[1]];
+  let mob = null;
+  if (/침상|침대째|누워|와상|매트/.test(t)) mob = 'bed';
+  else if (/휠체어/.test(t)) mob = 'wheel';
+  else if (/부축/.test(t)) mob = 'assist';
+  const rescue = /구조|남았|남아|못 모|도움|필요/.test(t);
+  const urgent = /연기|숨|의식|호흡/.test(t);
+  const room = rooms[0] || null;
+  const matched = room ? RES.filter(r => r.room === room && (!mob || r.mob === mob) && MOB[r.mob].help) : [];
+  const known = room ? RES.some(r => r.room === room) : false;
+  return { room, known, count: count || (room ? 1 : null), mob, rescue, urgent, person: matched.length === 1 ? matched[0] : null };
+}
+
+/* ===================== 상태 ===================== */
+const S = {
+  threshold: 3.0,
+  adjusted: {},           /* day -> staff id 추가 배치 */
+  plannedLeave: { 12:{ id:'nam', why:'연차' }, 19:{ id:'hong', why:'교육' }, 26:{ id:'kim', why:'연차' } },
+  selDay: 12,
+  accepted: false, checkedIn: false, confirmed: false,
+  cap: 'pair',
+  realFire: false,
+  entries: [],             /* 음성 입력 기록 */
+  voiceBusy: false, draft: null,
+  form: '223',
+  drill: { running:false, done:false, resp:[] },
+  parseFixed: false,
+  q: 1,
+};
+const KIM_NIGHT = 5;  /* 11월 5일(목) 한○○ 출근 불가(가상) */
+
+/* ===================== 공용 조각 ===================== */
+function phone(label, time, inner, opts = {}){
+  return `<div class="phone"><div class="phone-label">${esc(label)}</div><div class="screen" ${opts.fire ? 'style="box-shadow:inset 0 0 0 3px var(--fire)"' : ''}>
+    <div class="status"><span class="num">${esc(time)}</span><span>${opts.right ? esc(opts.right) : '오늘의 자위소방대'}</span></div>
+    <div class="app">${inner}</div></div></div>`;
+}
+function desk(label, inner){
+  return `<div class="desk"><div class="desk-bar"><i></i><i></i><i></i><span>${esc(label)}</span></div><div class="desk-screen">${inner}</div></div>`;
+}
+const mobTag = r => `<span class="mob ${r.mob}">${MOB[r.mob].label}</span>`;
+function floorMap(opts = {}){
+  /* 2층 평면(가상): 서편 구획 201~204 · 가운데 방화문 · 동편 구획(휴게실·일시대피) */
+  const fire = opts.fire;
+  return `<div class="mapbox"><svg viewBox="0 0 320 170" role="img" aria-label="2층 평면도(가상): 서편 구획 객실 201호부터 204호, 가운데 방화문, 동편 구획 휴게실">
+    <rect x="1" y="1" width="318" height="168" rx="8" fill="var(--card)" stroke="var(--line)"/>
+    <rect x="10" y="10" width="186" height="150" rx="4" fill="var(--soft)" stroke="var(--line)"/>
+    <rect x="214" y="10" width="96" height="150" rx="4" fill="var(--system-soft)" stroke="var(--system)"/>
+    <g font-size="11" font-weight="700" fill="var(--ink)" font-family="inherit">
+      <rect x="18" y="18" width="40" height="44" fill="var(--card)" stroke="var(--line)"/><text x="38" y="44" text-anchor="middle">201</text>
+      <rect x="62" y="18" width="40" height="44" fill="var(--card)" stroke="var(--line)"/><text x="82" y="44" text-anchor="middle">202</text>
+      <rect x="106" y="18" width="40" height="44" fill="var(--card)" stroke="var(--line)"/><text x="126" y="44" text-anchor="middle">203</text>
+      <rect x="150" y="18" width="40" height="44" fill="var(--card)" stroke="var(--line)"/><text x="170" y="44" text-anchor="middle">204</text>
+      <text x="100" y="80" text-anchor="middle" fill="var(--muted)">서편 복도</text>
+      <rect x="18" y="116" width="44" height="36" fill="var(--card)" stroke="var(--line)"/><text x="40" y="138" text-anchor="middle" fill="var(--muted)">계단</text>
+      <rect x="150" y="116" width="40" height="36" fill="var(--card)" stroke="var(--line)"/><text x="170" y="131" text-anchor="middle" fill="var(--muted)">벽장</text><text x="170" y="145" text-anchor="middle" fill="var(--muted)" font-size="9">매트</text>
+      <text x="262" y="60" text-anchor="middle" fill="var(--system)">동편 구획</text>
+      <text x="262" y="76" text-anchor="middle" fill="var(--system)" font-size="10">휴게실 · 일시대피</text>
+      <rect x="232" y="116" width="60" height="36" fill="var(--card)" stroke="var(--line)"/><text x="262" y="138" text-anchor="middle" fill="var(--muted)">계단</text>
+    </g>
+    <rect x="197" y="70" width="16" height="44" fill="var(--warn-soft)" stroke="var(--warn)"/>
+    <text x="205" y="128" font-size="9" text-anchor="middle" fill="var(--warn)" font-weight="700" font-family="inherit">방화문</text>
+    <path d="M 60 96 L 186 96" stroke="var(--system)" stroke-width="3" fill="none" stroke-dasharray="6 4"/>
+    <path d="M 186 96 L 236 96" stroke="var(--system)" stroke-width="3" fill="none"/>
+    <path d="M 236 96 l -8 -5 v 10 z" fill="var(--system)"/>
+    <circle cx="112" cy="122" r="6" fill="var(--fire)"/><text x="112" y="125" font-size="8" fill="#fff" text-anchor="middle" font-family="inherit">소</text>
+    ${fire ? '<text x="40" y="108" font-size="10" text-anchor="middle" fill="var(--fire)" font-weight="700" font-family="inherit">연기 유입 우려</text>' : ''}
+  </svg></div>`;
+}
+
+/* ===================== 장면 ===================== */
+const SCEN = {
+  W:{ n:1, name:'근무자 출근', sub:'김○○ 요양보호사 · 11월 5일(목) 야간' },
+  F:{ n:2, name:'불이 났을 때', sub:'11월 6일(금) 새벽 04:24' },
+  M:{ n:3, name:'관리자', sub:'송○○ 소방안전관리자 · 11월' },
+  S:{ n:4, name:'관할 소방', sub:'화재안전조사 · 기록 열람' },
+};
+
+function kimLines(){
+  return `<div class="lines">
+      <div class="line"><span class="k">1</span><div><div class="h">알린다</div><div class="d">경보가 울리면 사무실(윤○○) 알림·119 신고 확인</div></div></div>
+      <div class="line"><span class="k">2</span><div><div class="h">막는다 · 간다</div><div class="d">불난 쪽 문 닫기 → 2층 서편 복도, 소화기는 복도 가운데</div></div></div>
+      <div class="line"><span class="k">3</span><div><div class="h">옮긴다</div><div class="d">201~204호 → 방화문 너머 동편 구획(수평피난). 혼자 걸으시는 분 먼저 안내 → 부축·휠체어 → 침상(대피용 매트, 복도 벽장)</div></div></div>
+    </div>`;
+}
+function pairWarn(){
+  const f2 = planNight(KIM_NIGHT, ['han']).floors.find(f => f.floor === 2);
+  return f2.pairOk ? '' : `<div class="firebox"><b style="color:var(--fire)">오늘 밤 짝 없음</b> — 침상째 이동 어르신 1명. 비상 호출이 켜져 있습니다(임○○ · 8분 거리, 송○○ 시설장).</div>`;
+}
+function kimCardInner(mode, foot = ''){
+  const plan = planNight(KIM_NIGHT, ['han']);
+  const kim = plan.slots.find(s => s.id === 'kim');
+  const done = S.confirmed;
+  const defaultFoot = mode === 'card' ? `<div class="row"><button class="btn ghost sm" data-act="speak">🔈 읽어 주기</button><button class="btn ghost sm" data-go="w4">201~204호 어르신 ›</button></div>
+      <button class="btn ${done ? 'sys' : 'primary'}" data-act="confirm">${done ? '임무 확인함 · 19:52 (기록됨)' : '임무 확인했습니다'}</button>` : '';
+  return `
+    <div class="appbar"><span class="ttl">야간 근무 · <b>${S.checkedIn || mode !== 'card' ? '출근 완료 19:52' : '출근 전'}</b></span><span class="chip sys">임무 ${kim.tasks.length}</span></div>
+    <div><div class="bigname">김○○ <span style="font-size:15px;font-weight:700;color:var(--muted)">요양보호사</span></div></div>
+    <div class="band"><b>임무 추가 · 빈자리 대신</b>한○○ 님 출근 불가로 오늘 2층 피난유도(201~204호)가 넘어왔습니다.</div>
+    <div class="role">피난유도 · 2층 <span style="font-size:14px;color:var(--muted);font-weight:700">+ 초기소화</span></div>
+    ${kimLines()}
+    ${pairWarn()}
+    <div class="appfoot">${foot || defaultFoot}</div>`;
+}
+const KIM_SPEECH = '오늘 내 임무. 피난유도, 2층, 그리고 초기소화. 한○○ 님 출근 불가로 201호부터 204호 피난유도가 넘어왔습니다. 하나, 경보가 울리면 사무실 알림과 119 신고를 확인합니다. 둘, 불난 쪽 문을 닫고 2층 서편 복도로 갑니다. 셋, 201호부터 204호 어르신을 방화문 너머 동편 구획으로 옮깁니다. 혼자 걸으시는 분 먼저, 침상째 이동하실 분은 복도 벽장의 대피용 매트를 씁니다.';
+
+const STEPS = [
+  /* ---------- 1. 근무자 ---------- */
+  { id:'w1', sc:'W', time:'11월 5일(목) 15:10', title:'빈자리가 생기면, 맡을 사람에게 먼저 묻습니다', who:'근무자 김○○의 휴대폰',
+    what:`<p>오늘 밤 같은 조인 한○○ 님이 <b>출근 불가</b>를 눌렀습니다(가상 사유: 병가 — 앱에는 사유를 적지 않고 동료 화면에도 보이지 않음).</p><p>규칙엔진이 같은 층 → 지금 임무 수 → 체력 신고 순으로 김○○ 님을 골라 알림을 보냈습니다. 받는 사람은 이유를 보고 수락합니다. 아무도 수락하지 않으면 관리자에게 바로 경고가 갑니다.</p>`,
+    basis:['TypeⅢ 자위소방대 표준운영 매뉴얼: 공백이 생기면 편성표를 바로 고칠 것','시행규칙 제11조③ 근무위치·근무인원을 고려한 초기대응체계 편성'],
+    setup(){ S.accepted = false; },
+    render(){
+      const plan = planNight(KIM_NIGHT, ['han']); const mv = plan.moves[0];
+      return phone('근무자 · 김○○', '15:10', `
+        <div class="appbar"><span class="ttl">알림</span><span class="chip sys">시스템 추천</span></div>
+        <div class="bigname" style="font-size:21px">오늘 밤 임무를<br>맡아 주실 수 있나요?</div>
+        <div class="card"><div class="small">오늘 11월 5일(목) 야간 20:00~08:00</div>
+          <div style="font-weight:900;font-size:17px;margin-top:2px">2층 피난유도 · 201~204호</div>
+          <div class="small" style="margin-top:4px">한○○ 님 출근 불가 · 15:08</div></div>
+        <div class="sysbox"><b>왜 저에게 왔나요?</b><br>${mv.why.map(esc).join(' · ')}</div>
+        <div class="appfoot">
+          ${S.accepted ? `<div class="sysbox"><b>수락했습니다 · 15:12</b><br>출근하면 임무 카드에 이 임무가 노란 띠로 표시됩니다.</div><button class="btn primary" data-go="w2">다음: 출근 ›</button>`
+          : `<button class="btn primary" data-act="accept">맡겠습니다</button><button class="btn ghost" data-act="decline">어렵습니다(다음 사람에게)</button>`}
+        </div>`);
+    } },
+  { id:'w2', sc:'W', time:'11월 5일(목) 19:50', title:'근무표를 보러 연 앱에서, 출근을 누릅니다', who:'근무자 김○○의 휴대폰',
+    what:`<p>근무자가 앱을 자주 여는 이유는 <b>내 근무표</b>입니다. 이번 달 근무와 오늘 같이 일하는 사람이 보입니다.</p><p>출근을 누르는 순간 오늘 임무 카드가 뜹니다. 임무가 바뀐 날(오늘처럼)은 카드를 읽고 ‘임무 확인했습니다’를 누릅니다.</p>`,
+    basis:['자위소방대 표준운영 매뉴얼(TypeⅠ) 자체평가 예시: 초기대응체계 일일 상시 교육 "출근 직후 10분"','설치 없이 문자 링크로 열림 · 큰 글씨 · 버튼 3개 이내'],
+    setup(){ S.accepted = true; S.checkedIn = false; S.confirmed = false; },
+    render(){
+      const days = []; for (let d = 1; d <= 30; d++) days.push(d);
+      const crewA = d => crewOf(d) === 'A';
+      const lead = (new Date(2026, 10, 1)).getDay();
+      return phone('근무자 · 김○○', '19:50', `
+        <div class="appbar"><span class="ttl">내 근무표 · <b>2026년 11월</b></span><span class="chip">야간 ${days.filter(d => crewA(d) && !(S.plannedLeave[d] && S.plannedLeave[d].id === 'kim')).length}회 · 연차 ${days.filter(d => S.plannedLeave[d] && S.plannedLeave[d].id === 'kim').length}</span></div>
+        <div class="cal">${DOW.map(d => `<div class="h">${d}</div>`).join('')}${'<div></div>'.repeat(lead)}${days.map(d => `<div class="d ${crewA(d) ? 'n' : 'off'} ${d === KIM_NIGHT ? 'today' : ''}">${d}<br>${crewA(d) ? (d === 26 ? '연차' : '야') : '·'}</div>`).join('')}</div>
+        <div class="card"><div class="small">오늘 · 11월 5일(목)</div><div style="font-weight:900;font-size:18px">야간 20:00 ~ 08:00 · 2층</div>
+          <div class="small" style="margin-top:4px">같이 일하는 사람: 윤○○(1층)</div>
+          <div class="small">한○○ 님 출근 불가 · 대체 근무 요청 중</div></div>
+        <div class="appfoot">
+          <button class="btn primary" data-act="checkin">출근</button>
+          <div class="row"><button class="btn ghost sm" data-act="noop">출근 불가</button><button class="btn ghost sm" data-act="noop">근무 바꾸기 신청</button></div>
+        </div>`);
+    } },
+  { id:'w3', sc:'W', time:'11월 5일(목) 19:52', title:'출근하면, 오늘 내 임무가 세 줄로 뜹니다', who:'근무자 김○○의 휴대폰',
+    what:`<p>임무는 체력이 아니라 <b>순서</b>로 씁니다. 알린다 → 막는다·간다 → 옮긴다.</p><p>목적지는 계단이 아니라 같은 층 방화문 너머(수평피난)이고, 쓸 기구와 위치를 함께 적습니다. 평소와 달라진 점만 노란 띠로 보여 줍니다.</p><p>오늘 밤 2층은 근무자가 한 명이라 짝이 없습니다. 카드가 이 사실과 비상 호출 대상을 함께 보여 줍니다.</p>`,
+    basis:['서식 2.4 개별임무카드(공통임무·개별임무)','서식 2.5.2 시간대별 기대행동(+1분·+5분·+10분)','일본 소방청 수평피난 훈련 매뉴얼(2018) · 스코틀랜드 요양원 화재안전 지침(2022)'],
+    setup(){ S.accepted = true; S.checkedIn = true; },
+    render(){ return phone('근무자 · 김○○', '19:52', kimCardInner('card')); } },
+  { id:'w4', sc:'W', time:'11월 5일(목) 19:53', title:'방 번호를 누르면, 옮길 분과 거동 상태가 보입니다', who:'근무자 김○○의 휴대폰',
+    what:`<p>임무 카드의 <b>201~204호</b>를 누르면 어르신과 거동 상태(혼자 걸음·부축·휠체어·침상째)가 보입니다.</p><p>병명 같은 건강정보는 입소 때 별도 동의를 받은 경우에만, 화재 같은 위급할 때 열리게 설계합니다.</p>`,
+    basis:['서식 3.5 피난약자 현황 및 피난계획(구역·장소·유형·피난보조 보조자)','개인정보 보호법 제23조(민감정보) — 별도 동의'],
+    setup(){ S.checkedIn = true; },
+    render(){
+      const mine = RES.filter(r => ['201','202','203','204'].includes(r.room));
+      return phone('근무자 · 김○○', '19:53', `
+        <div class="appbar"><span class="ttl">‹ 201~204호 어르신</span><span class="chip">${mine.length}명</span></div>
+        <div class="list">${mine.map(r => `<div class="it"><span class="room">${r.room}호</span><div><div style="font-weight:700">${r.name}</div>${r.aid ? `<div class="small">${esc(r.aid)}</div>` : ''}</div>${mobTag(r)}</div>`).join('')}</div>
+        <div class="small">혼자 못 걸으시는 분 ${mine.filter(r => MOB[r.mob].help).length}명 · 침상째 이동 ${mine.filter(r => r.mob === 'bed').length}명</div>
+        <div class="appfoot"><button class="btn ghost" data-go="w5">층 지도 · 내 체력 신고 ›</button></div>`);
+    } },
+  { id:'w5', sc:'W', time:'11월 5일(목) 19:54', title:'층 지도와 체력 신고 — 나이로 가르지 않습니다', who:'근무자 김○○의 휴대폰',
+    what:`<p>층 지도에 피난 목적지(동편 구획), 방화문, 소화기, 대피용 매트 위치가 보입니다. 목적지는 앱이 정하지 않고 시설 피난계획(서식 3.5 구역별 세부 피난경로)에서 가져옵니다.</p><p>옮기는 일을 <b>혼자 / 둘이면 / 어려움</b> 중 본인이 고릅니다. 규칙엔진은 이 신고와 위치·임무 수로 배정하고, 나이로 가르지 않습니다(이 시연에서는 고른 값이 화면에만 반영되고, 추천 계산에는 미리 넣은 값을 씁니다).</p>`,
+    basis:['서식 3.7 피난기구·유도장비 보관장소','Lim·Lee·Hwang(2023): 담당 지정으로 피난시간이 일부 줄었으나 시나리오 간 총 피난시간 차이는 뚜렷하지 않음(기구·짝·목적지를 함께 정하는 것은 본 서비스 설계)'],
+    setup(){},
+    render(){
+      return phone('근무자 · 김○○', '19:54', `
+        <div class="appbar"><span class="ttl">‹ 2층 지도</span><span class="chip sys">목적지: 동편 구획</span></div>
+        ${floorMap()}
+        <div class="small">점선 → 실선: 서편 복도에서 방화문 지나 동편 구획 · 소 = 소화기 · 벽장 = 대피용 매트</div>
+        <div class="card"><div style="font-weight:900">어르신을 옮기는 일, 저는</div>
+          <div class="say" style="margin-top:8px">${Object.entries(CAP).map(([k, v]) => `<button data-cap="${k}" aria-pressed="${S.cap === k}" style="${S.cap === k ? 'border-style:solid;border-color:var(--ink);font-weight:700' : ''}">${S.cap === k ? '● ' : '○ '}${v}</button>`).join('')}</div>
+          <div class="small" style="margin-top:6px">언제든 바꿀 수 있고, 관리자에게는 배정 근거로만 보입니다.</div></div>`);
+    } },
+
+  /* ---------- 2. 화재 ---------- */
+  { id:'f1', sc:'F', time:'11월 6일(금) 04:24', title:'수신기가 울리면, 가장 가까운 사람에게 \'확인 2분\'', who:'1층 근무자 윤○○의 휴대폰 · 2단계(수신기 연동) 예시',
+    what:`<p>현장은 비화재보 때문에 \'울리면 끈다\'가 습관이 되기 쉽습니다. 그래서 연동은 <b>확인하게 만드는 설계</b>와 함께 갑니다.</p><p>수신기 \'화재\' 신호가 오면 그 감지기에 가장 가까운 근무자에게 확인 임무가 뜹니다. 2분 안에 실제 화재/오작동을 누르고, <b>응답이 없거나 실제 화재면 전원 임무 카드</b>가 켜집니다. 오작동은 시각·감지기 위치와 함께 기록됩니다.</p><p class="small">1단계(시범)에서는 연동 없이, 경종이 울리면 근무자가 \'화재\' 버튼을 누릅니다.</p>`,
+    basis:['서식 2.13 초기대응절차: 비화재보 시 / 화재 시 · 서식 1.10.3 화재/비화재보 이력','진승현 외(2018) 표 1: 밀양 화재 "화재경보기 오작동으로 인식하여 피난 대응이 늦어짐"','소방시설법 시행령 별표 4: 노유자 생활시설 자동화재탐지설비·자동화재속보설비'],
+    setup(){ S.realFire = false; },
+    render(){
+      return phone('1층 근무자 · 윤○○', '04:24', `
+        <div class="appbar"><span class="ttl">수신기 신호</span><span class="chip fire">확인 임무</span></div>
+        <div class="firebox"><div style="font-weight:900;font-size:18px;color:var(--fire)">1층 사무실 감지기 '화재'</div><div class="small">04:24:10 · 가장 가까운 근무자: 윤○○(1층)</div></div>
+        <div class="timer num" id="cdown">2:00</div>
+        <div class="small" style="text-align:center">가서 보고 눌러 주세요. 2분 동안 응답이 없으면 전원 임무 카드가 켜집니다.</div>
+        <div class="appfoot">
+          <button class="btn fire" data-act="realfire">실제 화재</button>
+          <button class="btn ghost" data-act="falsealarm">오작동(기록만 남김)</button>
+        </div>`, { fire:true });
+    } },
+  { id:'f2', sc:'F', time:'11월 6일(금) 04:25', title:'실제 화재 — 119 신고 도우미와 전원 임무 카드', who:'윤○○과 김○○의 휴대폰',
+    what:`<p>윤○○ 님 화면에는 <b>119 신고 도우미</b>가 뜹니다. 주소·불난 곳·남은 인원이 문장으로 정리돼 있어 읽기만 하면 됩니다(포항 사례에서는 신고가 경비실을 거치며 늦어졌습니다).</p><p>같은 순간 모든 근무자 휴대폰에 <b>전원 임무 카드</b>가 켜집니다. 매일 출근 때 본 바로 그 임무입니다.</p>`,
+    basis:['서식 2.6 비상연락: 연락방법 "자체 App 활용" 칸','서식 2.5.2 비고: 119소방대에 연소범위·피난유도상황 정보 제공'],
+    setup(){ S.realFire = true; },
+    render(){
+      const p = planNight(KIM_NIGHT, ['han']);
+      const n = RES.length, staff = p.working.length;
+      return phone('1층 근무자 · 윤○○', '04:25', `
+        <div class="appbar"><span class="ttl">119 신고 도우미</span><span class="chip fire">화재</span></div>
+        <div class="card" style="font-size:16px;line-height:1.7">
+          "여기는 <b>${esc(FAC.addr)}</b>, ${esc(FAC.name)}입니다. <b>1층 사무실</b>에서 불이 났습니다. 입소 어르신 <b>${n}명</b>, 근무자 <b>${staff}명</b>입니다. <b>2층에 혼자 못 걸으시는 분이 ${RES.filter(r => r.floor === 2 && MOB[r.mob].help).length}명</b> 계십니다."</div>
+        <div class="appfoot"><button class="btn fire" data-act="noop">119 전화 걸기(시연: 실제로 걸리지 않음)</button><div class="small">문장은 오늘 편성·입소자 현황으로 자동으로 만들어집니다.</div></div>`, { fire:true })
+      + phone('2층 근무자 · 김○○', '04:25', `
+        <div class="firebox" style="text-align:center"><div style="font-size:13px;font-weight:700;color:var(--fire)">화재 · 1층 사무실 · 04:24</div><div style="font-size:22px;font-weight:900">지금 내 임무</div></div>
+        <div class="role">피난유도 · 2층 <span style="font-size:14px;color:var(--muted);font-weight:700">+ 초기소화</span></div>
+        ${kimLines()}
+        ${pairWarn()}
+        <div class="appfoot"><button class="btn primary" data-go="f3">임무 시작 ›</button></div>`, { fire:true });
+    } },
+  { id:'f3', sc:'F', time:'11월 6일(금) 04:30', title:'임무대로 움직이고, 못 모신 분은 남깁니다', who:'2층 근무자 김○○의 휴대폰',
+    what:`<p>김○○ 님은 혼자 걸으시는 네 분과 부축이 필요한 고○○ 님을 방화문 너머 동편 구획으로 모셨습니다.</p><p>혼자서는 침상째·휠체어·부축이 필요한 세 분을 다 모시지 못했습니다. 화면 아래 <b>음성 버튼</b>으로 남은 분을 바로 알립니다. 구조가 먼저이고, 입력은 짧게 합니다.</p>`,
+    basis:['홍해리 외(2019): 야간 직원 1명당 피난시킬 입소자 7.7~19.7명','최두찬(소방안전플러스 VOL.18): 야간 대피가 주간보다 70% 가까이 늦어짐'],
+    setup(){ S.realFire = true; },
+    render(){
+      const mine = RES.filter(r => ['201','202','203','204'].includes(r.room));
+      const left = ['이○○','박○○','최○○'];
+      return phone('2층 근무자 · 김○○', '04:30', `
+        <div class="appbar"><span class="ttl">화재 · 1층 사무실</span><span class="chip fire">04:24 ~</span></div>
+        <div class="lines">
+          <div class="line done"><span class="k">✓</span><div><div class="h">알린다</div><div class="d">119 신고됨 04:25 (윤○○)</div></div></div>
+          <div class="line done"><span class="k">✓</span><div><div class="h">막는다 · 간다</div><div class="d">서편 복도 방화문 닫힘 확인</div></div></div>
+          <div class="line miss"><span class="k">3</span><div><div class="h">옮긴다 · 5/8</div><div class="d">동편 구획으로 이동 5명 · 남은 분 3명</div></div></div>
+        </div>
+        <div class="list">${mine.map(r => `<div class="it"><span class="room">${r.room}</span><div style="font-weight:700">${r.name}</div>${left.includes(r.name) ? '<span class="chip fire">남음</span>' : '<span class="chip ok">이동</span>'}</div>`).join('')}</div>
+        <div class="appfoot"><button class="btn fire" data-go="f4">🎙 남은 분 말하기</button></div>`, { fire:true });
+    } },
+  { id:'f4', sc:'F', time:'11월 6일(금) 04:31', title:'누르고 말하면, 호실·인원·상태로 정리됩니다', who:'2층 근무자 김○○의 휴대폰',
+    what:`<p>실제 서비스는 음성 인식(STT)과 LLM이 말을 호실·인원·거동 상태로 정리하고, 이름은 시설 쪽 입소자 명단에서 붙입니다(외부 AI에 실명을 보내지 않도록 이름 대신 호실로 말하게 안내). 이 시연에서는 예시 문장을 고르거나 직접 입력하면 <b>규칙으로 정리</b>해 보여 줍니다.</p><p>정리된 결과를 본인이 확인하고 보내면, 관계인 화면과 관할 소방 화면에 동시에 올라갑니다. 실제 서비스에서는 시끄러울 때 호실 버튼으로도 입력합니다(이 시연에는 없음).</p>`,
+    basis:['자위소방대 표준운영 매뉴얼(TypeⅠ): 재집결지에서 잔류자 현황 수집 → 소방기관 연락','일본 소방청 통지(1989): 소방대에 층별 자력피난 곤란자 수·피난 상황 전달'],
+    setup(){ S.realFire = true; if (!S.entries.length) S.draft = null; },
+    render(){
+      const samples = ['201호 한 분 침상째, 구조 필요','202호 휠체어 한 분 남았어요','203호 부축 필요한 분 한 명 남음'];
+      const used = S.entries.map(e => e.src);
+      const d = S.draft;
+      return phone('2층 근무자 · 김○○', '04:31', `
+        <div class="appbar"><span class="ttl">음성으로 남은 분 알리기</span><span class="chip sys">STT · 정리</span></div>
+        <div class="card" style="text-align:center">
+          ${S.voiceBusy ? '<div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="small">듣는 중…</div>'
+            : `<button class="btn fire" data-act="talk" ${used.length >= samples.length ? 'disabled' : ''}>🎙 누르고 말하기(시연)</button>`}
+        </div>
+        <div class="say">${samples.map(s => `<button data-say="${esc(s)}" ${used.includes(s) ? 'disabled' : ''}>"${esc(s)}"</button>`).join('')}</div>
+        <div class="field"><input id="sayInput" aria-label="직접 입력" placeholder="직접 입력: 예) 203호 부축 1명"><button class="btn sm" data-act="typed">정리</button></div>
+        ${d ? `<div class="sysbox"><b>이렇게 정리했어요</b> — 맞으면 보내기
+          <div class="parsed" style="margin-top:6px">${d.room ? (d.known ? `<span class="chip">${d.room}호</span>` : `<span class="chip warn">${d.room}호는 이 시설에 없음</span>`) : '<span class="chip warn">호실 못 찾음</span>'}${d.count ? `<span class="chip">${d.count}명</span>` : ''}${d.mob ? `<span class="mob ${d.mob}">${MOB[d.mob].label}</span>` : ''}${d.rescue ? '<span class="chip fire">구조 요함</span>' : ''}${d.urgent ? '<span class="chip fire">위급</span>' : ''}${d.person ? `<span class="chip ok">${d.person.name}</span>` : ''}</div>
+          <div class="row" style="margin-top:8px"><button class="btn sys sm" data-act="send" ${d.room && d.known ? '' : 'disabled'}>보내기</button><button class="btn ghost sm" data-act="redo">다시</button></div></div>` : ''}
+        <div class="small">보낸 기록 ${S.entries.length}건${S.entries.length ? ' · ' + S.entries.map(e => e.room + '호 ' + e.time).join(', ') : ''}</div>
+        ${S.entries.length >= 3 ? '<div class="appfoot"><button class="btn primary" data-go="f5">관계인 상황판 보기 ›</button></div>' : ''}`, { fire:true });
+    } },
+  { id:'f5', sc:'F', time:'11월 6일(금) 04:33', title:'관계인 화면 — 불난 곳, 남은 분, 구획에 모인 분', who:'관계인(사무실·시설장) 화면',
+    what:`<p>화점, 구조가 필요한 분, 층별 상황이 한 화면에 모입니다. 같은 화면이 <b>관할 소방서에 실시간으로 공유</b>됩니다.</p><p>2층 다섯 분은 밖이 아니라 <b>동편 구획에 대기 중</b>(수평피난)이라는 점도 함께 보여 줍니다. 소방대가 그분들도 마저 모셔야 하기 때문입니다.</p>`,
+    basis:['서식 2.5.2 비고: 119소방대 출동 시 연소범위·피난유도상황 정보 제공','자위소방대 표준운영 매뉴얼(TypeⅠ) 평가표: 보고현황을 상황판에 실시간 입력·정보공유','하트퍼드(미국, 2003)·로즈파크(영국, 2004) 화재: 야간 근무조 임무·훈련 부재'],
+    setup(){ S.realFire = true; fillEntries(); },
+    render(){ return desk('관계인 화면 · ' + FAC.name, boardInner(false)); } },
+  { id:'f6', sc:'F', time:'11월 6일(금) 04:33', title:'관할 소방 — 출동하면서 같은 화면을 봅니다', who:'관할 소방서 상황실·출동대 화면',
+    what:`<p>출동대는 도착 전에 "어디서 불이 났나, 안에 사람이 있나"의 답을 받습니다. <b>2층 3명 남음</b>을 누르면 몇 호에 누가 어떤 상태로 남았는지 나옵니다.</p><p>입력에는 시각과 입력자가 남고, 소방은 참고 정보로 씁니다. 최종 판단은 현장이 합니다.</p>`,
+    basis:['개인정보 보호법 제15조①5호·제18조②3호: 급박한 생명·신체 이익','민감정보(건강)는 제23조에 따라 입소 때 별도 동의로'],
+    setup(){ S.realFire = true; fillEntries(); },
+    render(){ return desk('관할 소방 · 출동 중 열람(읽기 전용)', boardInner(true)); } },
+
+  /* ---------- 3. 관리자 ---------- */
+  { id:'m1', sc:'M', time:'11월 1일(일) 10:00', title:'월초에 근무표를 한 번 올리면, AI가 읽고 사람이 확인합니다', who:'소방안전관리자 송○○ 화면',
+    what:`<p>엑셀이나 손으로 쓴 근무표 사진을 올리면 멀티모달 LLM이 근무자 × 날짜 × 근무 형태 표로 읽습니다. 실명은 가명 ID로 바꿔 처리합니다(손으로 쓴 사진처럼 가리기 어려운 자료는 시설 쪽 환경에서 읽은 뒤 바꿈).</p><p>확신이 낮은 칸은 빨간 테두리로 표시되고, 관리자가 눌러 고친 뒤 확정합니다. <span class="small">(이 시연은 미리 준비한 판독 결과를 보여 줍니다)</span></p>`,
+    basis:['외부 AI에는 실명 없이 가명 ID와 근무 정보만 · 실명·연락처는 시설 쪽 서버'],
+    setup(){ S.parseFixed = false; },
+    render(){
+      const ids = ['yoon','han','kim','jang','nam','lim','moon','bae','hong'];
+      const days = Array.from({ length: 14 }, (_, i) => i + 1);
+      const val = (id, d) => { const c = Object.entries(CREWS[crewOf(d)]).some(([, v]) => v === id); return c ? 'N' : ((d + ids.indexOf(id)) % 3 === 0 ? '-' : 'D'); };
+      const flags = { 'moon-10':'N?', 'bae-12':'D?' };
+      const grid = `<div class="grid" style="grid-template-columns:72px repeat(${days.length},minmax(18px,1fr))">
+        <div></div>${days.map(d => `<div class="gh">${d}</div>`).join('')}
+        ${ids.map(id => `<div class="gn">${STAFF[id].name}</div>${days.map(d => { const k = id + '-' + d; const f = flags[k];
+          if (f && !S.parseFixed) return `<button class="gc flag" data-act="fixparse" title="확신 낮음: 눌러서 확인">${f}</button>`;
+          const v = val(id, d); return `<div class="gc ${v} ${f ? 'fixed' : ''}">${v === 'N' ? '야' : v === 'D' ? '주' : ''}</div>`; }).join('')}`).join('')}</div>`;
+      return desk('관리자 · 근무표 판독 확인', `
+        <div class="dhead"><h3>11월 근무표 판독 결과</h3><span class="meta">근무표_11월.jpg · 판독 9명 × 30일 (1~14일 표시)</span></div>
+        <div class="cols">
+          <div class="panel" style="grid-column:1/-1"><div class="tblwrap" style="padding:8px;border:0">${grid}</div>
+            <div class="legend"><span><i class="sw" style="background:#1F2A35"></i>야간</span><span><i class="sw" style="background:var(--chip)"></i>주간</span><span><i class="sw fir"></i>확신 낮음(눌러 확인)</span><span><i class="sw sys"></i>사람이 고친 칸</span></div></div>
+        </div>
+        <div class="row" style="justify-content:flex-end;gap:10px;flex-wrap:wrap">
+          <span class="small" style="align-self:center">${S.parseFixed ? '확인 필요 칸 0개 — 확정할 수 있습니다' : '확인 필요 칸 2개'}</span>
+          <button class="btn ${S.parseFixed ? 'sys' : ''} sm" data-go="m2" ${S.parseFixed ? '' : 'disabled'}>확정하고 임무 추천 받기 ›</button>
+        </div>`);
+    } },
+  { id:'m2', sc:'M', time:'11월 1일(일) 10:05', title:'한 달 편성 추천 — 부족한 밤을 미리 숫자로 봅니다', who:'소방안전관리자 송○○ 화면',
+    what:`<p>규칙엔진이 날마다 결원을 반영해 야간조 임무를 다시 나누고 층별 <b>피난 부담(혼자 못 걸으시는 분 ÷ 그 층 근무자)</b>과 2인 1조 가능 여부를 계산합니다.</p><p>예정된 연차·교육으로 사람이 빠지는 밤은 빨갛게 표시됩니다. 날짜를 누르고 <b>근무 조정</b> 후보를 고르면 다시 계산합니다. 기준값은 시설·관할 소방과 정할 값이라 바꿔 볼 수 있게 했습니다.</p><p class="small">앱이 인력을 만들지는 못합니다. 부족한 밤을 미리 보여 주고, 인력 요청의 근거를 남깁니다.</p>`,
+    basis:['스코틀랜드 지침(2022): 한 구역의 고의존 입소자 수는 야간 근무자가 대피시킬 수 있는 만큼','서식 2.13 초기대응체계: 근무형태(평일·휴일 × 주간·야간)'],
+    setup(){},
+    render(){
+      const lead = (new Date(2026, 10, 1)).getDay();
+      const cells = [];
+      for (let d = 1; d <= 30; d++){
+        const absent = S.plannedLeave[d] ? [S.plannedLeave[d].id] : [];
+        const added = S.adjusted[d] ? [{ id:S.adjusted[d], floor:2 }] : [];
+        const p = planNight(d, absent, added); const w = judge(p, S.threshold);
+        const st = w.length ? 'flag' : (S.adjusted[d] ? 'fixed' : '');
+        cells.push(`<button class="mday ${st} ${S.selDay === d ? 'sel' : ''}" data-day="${d}"><span class="dn">${d}일</span><span>${p.crew}조 · ${p.working.length}명</span>${w.length ? `<span style="color:var(--fire);font-weight:700">경고 ${w.length}</span>` : (S.adjusted[d] ? '<span style="color:var(--system);font-weight:700">조정됨</span>' : '')}</button>`);
+      }
+      const sd = S.selDay;
+      const absent = S.plannedLeave[sd] ? [S.plannedLeave[sd].id] : [];
+      const added = S.adjusted[sd] ? [{ id:S.adjusted[sd], floor:2 }] : [];
+      const p = planNight(sd, absent, added); const w = judge(p, S.threshold);
+      const flagged = []; for (let d = 1; d <= 30; d++){ const a = S.plannedLeave[d] ? [S.plannedLeave[d].id] : []; const ad = S.adjusted[d] ? [{ id:S.adjusted[d], floor:2 }] : []; if (judge(planNight(d, a, ad), S.threshold).length) flagged.push(d); }
+      const cands = swapCandidates(sd).slice(0, 3);
+      return desk('관리자 · 11월 편성 추천', `
+        <div class="dhead"><h3>11월 야간 편성 추천</h3><span class="meta">경고 있는 밤 <b class="num" style="color:var(--fire)">${flagged.length}</b>일 · ${flagged.length ? flagged.slice(0, 6).map(d => d + '일').join(', ') + (flagged.length > 6 ? ' 외 ' + (flagged.length - 6) + '일' : '') : '없음'}</span></div>
+        <div class="slider"><label for="thr">피난 부담 기준(예시값)</label><input type="range" id="thr" min="1" max="6" step="0.5" value="${S.threshold}"><b class="num">${S.threshold.toFixed(1)}명/인</b></div>
+        <div class="cols" style="grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)">
+          <div class="panel"><div class="mcal">${DOW.map(d => `<div class="h">${d}</div>`).join('')}${'<div class="mday empty"></div>'.repeat(lead)}${cells.join('')}</div></div>
+          <div class="panel">
+            <h4>11월 ${sd}일(${DOW[(lead + sd - 1) % 7]}) 야간 · ${p.crew}조</h4>
+            ${absent.length ? `<div class="band"><b>예정된 결원</b>${STAFF[absent[0]].name} ${S.plannedLeave[sd].why} → ${p.moves.map(m => m.tasks.join('·') + (m.rooms.length ? '(' + m.rooms[0] + '~' + m.rooms[m.rooms.length - 1] + '호)' : '') + ' 임무가 ' + STAFF[m.to].name + '에게').join(', ')} 넘어감</div>` : ''}
+            ${p.floors.map(f => `<div><div class="row small" style="justify-content:space-between"><span>${f.floor}층 · 근무 ${f.staff}명 · 도움 필요 ${f.needHelp}명</span><b class="num">${isFinite(f.ratio) ? f.ratio.toFixed(1) : '∞'}명/인</b></div><div class="bar ${f.ratio > S.threshold ? 'over' : ''}"><i style="width:${Math.min(100, (isFinite(f.ratio) ? f.ratio : 6) / 6 * 100)}%"></i></div></div>`).join('')}
+            ${w.length ? w.map(x => `<div class="${x.lvl === 'fire' ? 'firebox' : 'band'}" style="font-size:13px">${esc(x.text)}</div>`).join('') : '<div class="sysbox" style="font-size:13px"><b>경고 없음</b></div>'}
+            ${w.length ? `<div class="small" style="font-weight:700;color:var(--ink)">근무 조정 후보(2층 짝으로 추가)</div>${cands.map(c => `<button class="btn sm" style="width:100%;text-align:left" data-adjust="${c.id}">${STAFF[c.id].name} · ${CAP[STAFF[c.id].cap]} · ${STAFF[c.id].dist}분 거리${c.rest ? ' · 전날 야간조' : ''}${c.nextNight ? ' · 다음 날 야간조' : ''}</button>`).join('')}` : (S.adjusted[sd] ? `<button class="btn ghost sm" data-unadjust="${sd}">조정 취소</button>` : '')}
+          </div>
+        </div>`);
+    } },
+  { id:'m3', sc:'M', time:'11월 5일(목) 15:40', title:'당일 빈자리 — 넘긴 기록과 남은 위험을 함께 남깁니다', who:'소방안전관리자 송○○ 화면',
+    what:`<p>15:08 한○○ 님 출근 불가 → 15:10 김○○ 님 추천 → 15:12 수락. 대체 근무 요청은 아무도 올 수 없었습니다(가상).</p><p>그래서 오늘 밤 2층은 1명 근무입니다. 시스템은 피난 부담 초과와 짝 없음을 경고하고, <b>비상 호출 대상</b>(가까이 사는 비번 직원·시설장)을 지정합니다. 이 기록이 인력 보강을 요청하는 근거가 됩니다.</p>`,
+    basis:['TypeⅢ 표준운영 매뉴얼: 공백 시 즉시 편성표 변경','시행규칙 제11조④ 대상물이 이용되는 동안 초기대응체계 상시 운영'],
+    setup(){},
+    render(){
+      const p = planNight(KIM_NIGHT, ['han']); const w = judge(p, S.threshold); const mv = p.moves[0];
+      const rows = p.working.map(s => `<tr class="${s.moved.length ? 'chg' : ''}"><td>${STAFF[s.id].name}</td><td>${s.label}</td><td>${s.tasks.join(' · ')}</td><td>${s.rooms.length ? s.rooms[0] + '~' + s.rooms[s.rooms.length - 1] + '호' : '—'}</td><td>${s.moved.length ? '빈자리 대신(' + STAFF[s.moved[0].from].name + ')' : ''}</td></tr>`).join('');
+      return desk('관리자 · 오늘(11월 5일) 편성', `
+        <div class="dhead"><h3>오늘 야간 편성 · A조</h3><span class="meta">20:00~08:00 · 확정 권한: 소방안전관리자</span></div>
+        <div class="cols" style="grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)">
+          <div class="panel"><h4>초기대응체계(오늘 근무자 기준)</h4>
+            <div class="tblwrap"><table class="t"><thead><tr><th>근무자</th><th>위치</th><th>임무</th><th>피난유도 담당</th><th>변경</th></tr></thead><tbody>${rows}<tr><td style="color:var(--muted)">${STAFF.han.name}</td><td colspan="4" style="color:var(--muted)">15:08 출근 불가</td></tr></tbody></table></div>
+            <h4 style="margin-top:6px">기록</h4>
+            <div class="log">
+              <div class="e"><span class="tm num">15:08</span><span>한○○ 출근 불가</span></div>
+              <div class="e"><span class="tm num">15:10</span><span>규칙엔진 추천: 김○○ — ${mv.why.join(' · ')}</span></div>
+              <div class="e"><span class="tm num">15:12</span><span>김○○ 수락 · 임무 카드 갱신</span></div>
+              <div class="e"><span class="tm num">15:13</span><span>대체 근무 요청 3명(임○○·장○○·홍○○)</span></div>
+              <div class="e"><span class="tm num">15:40</span><span>3명 모두 '오늘은 어려움' 응답(가상)</span></div>
+            </div></div>
+          <div class="panel"><h4>오늘 밤 경고</h4>
+            ${w.map(x => `<div class="${x.lvl === 'fire' ? 'firebox' : 'band'}" style="font-size:13px">${esc(x.text)}</div>`).join('')}
+            <h4>비상 호출 대상(지정 예시)</h4>
+            <div class="list"><div class="it" style="grid-template-columns:minmax(0,1fr) auto"><span><b>임○○</b> · 비번 · ${STAFF.lim.dist}분 거리</span><span class="chip sys">1순위</span></div><div class="it" style="grid-template-columns:minmax(0,1fr) auto"><span><b>송○○</b> · 시설장</span><span class="chip">2순위</span></div></div>
+            <div class="small">화재 시 전원 임무 카드와 함께 자동 호출 · 응답 여부 기록</div>
+            <button class="btn sm" data-act="noop" style="width:100%">인력 보강 요청서로 내보내기(경고 기록 첨부)</button>
+          </div>
+        </div>`);
+    } },
+  { id:'m4', sc:'M', time:'11월 5일(목) 15:45', title:'새 서식 없음 — 소방계획서 서식 칸을 그대로 채웁니다', who:'소방안전관리자 송○○ 화면',
+    what:`<p>확정한 편성은 한국소방안전원 「[의료,보호용도] 소방계획서 서식」의 칸에 그대로 들어갑니다. 서식의 네 칸(평일·휴일 × 주간·야간)은 기본 편성으로 채우고, <b>날마다 바뀐 편성은 날짜와 함께 기록</b>으로 남깁니다.</p><p>피난보조자 비상연락망(서식 3.8)의 '최근 업데이트 날짜'는 근무가 바뀔 때마다 오늘 날짜가 됩니다.</p>`,
+    basis:['서식 2.2.3 Type-Ⅲ 편성표 · 2.13 초기대응체계 · 3.8 피난보조자 비상연락망','시행규칙 제11조⑦ 별지 제13호서식 기록부, 2년 보관'],
+    setup(){},
+    render(){
+      const tabs = [['223','2.2.3 편성표'],['213','2.13 초기대응체계'],['38','3.8 피난보조자 연락망']];
+      let body = '';
+      const crewRow = k => { const c = CREWS[k]; return `${k}조: ${STAFF[c.f1].name}(1층 통보연락·초기소화·피난유도), ${STAFF[c.f2a].name}(2층 피난유도 201~204), ${STAFF[c.f2b].name}(2층 초기소화)`; };
+      const changeBox = `<div class="band" style="margin-top:8px;font-size:13px"><b>일자별 변경 기록(서식에 붙이는 기록)</b>11.5(목) 야간 A조 — 한○○ 출근 불가 → 2층 피난유도 201~204: 김○○(15:12 수락) · 2층 1명 근무 · 비상 호출 임○○</div>`;
+      if (S.form === '223') body = `<div class="paper"><div class="fttl">2.2.3 Type-Ⅲ 자위소방대 및 초기대응체계 편성표</div>
+        <div class="tblwrap"><table class="t"><thead><tr><th>자위소방대</th><th>소속</th><th>성명</th><th>개별임무</th><th>비상연락(사무실·개인)</th></tr></thead><tbody>
+        <tr><td>대장</td><td>시설장</td><td>송○○</td><td>총괄 · 소방대 인계</td><td>032-***-**** · 010-****-****</td></tr>
+        <tr><td>지휘통제팀 부대장(Ⅰ)</td><td>간호</td><td>오○○</td><td>피난 지휘 보조</td><td>032-***-**** · 010-****-****</td></tr>
+        <tr class="sys"><td>현장대응팀</td><td>요양</td><td>요양보호사 9명</td><td>통보연락 · 초기소화 · 피난유도(근무조별, 아래 초기대응체계)</td><td>앱 연락망</td></tr>
+        </tbody></table></div>
+        <div class="tblwrap" style="margin-top:8px"><table class="t"><thead><tr><th>초기대응체계</th><th>소속·성명·개별임무</th></tr></thead><tbody>
+        <tr><td>평일 주간 08~20시</td><td>요양보호사 4명 · 간호 1명(근무표 기준 자동 기재)</td></tr>
+        <tr class="sys"><td>평일 야간 20~08시</td><td>${crewRow('A')}<br>${crewRow('B')}<br>${crewRow('C')}</td></tr>
+        <tr><td>휴일 주간 08~20시</td><td>요양보호사 3명(근무표 기준 자동 기재)</td></tr>
+        <tr class="sys"><td>휴일 야간 20~08시</td><td>평일 야간과 같은 조 순환(A·B·C조)</td></tr>
+        </tbody></table></div>${changeBox}
+        <div class="note" style="margin-top:6px">서식의 칸 구성(대장·부대장·현장대응팀 / 평일·휴일 × 주간·야간)을 따라 채운 미리보기입니다. 청록 줄 = 시스템이 근무표로 채운 칸.</div></div>`;
+      if (S.form === '213') body = `<div class="paper"><div class="fttl">2.13 초기대응체계</div>
+        <div class="tblwrap"><table class="t"><thead><tr><th>근무형태</th><th>근무시간·위치</th><th>소속·성명</th><th>임무</th><th>비고</th></tr></thead><tbody>
+        <tr><td>평일 주간</td><td>08~20시 · 1·2층</td><td>요양 4명 · 간호 1명</td><td>통보연락·초기소화·피난유도</td><td></td></tr>
+        <tr class="sys"><td>평일 야간</td><td>20~08시 · 1층 / 2층</td><td>A·B·C조 각 3명</td><td>1층: 통보연락·초기소화·피난유도 / 2층: 피난유도(201~204)·초기소화</td><td>조별 명단은 2.2.3</td></tr>
+        <tr><td>휴일 주간</td><td>08~20시</td><td>요양 3명</td><td>통보연락·초기소화·피난유도</td><td></td></tr>
+        <tr class="sys"><td>휴일 야간</td><td>20~08시</td><td>A·B·C조 각 3명</td><td>평일 야간과 같음</td><td></td></tr>
+        </tbody></table></div>
+        <div class="note" style="margin-top:6px">서식 2.13의 열(근무형태·근무시간 및 위치·소속 및 성명·임무·비고)을 따라 채운 미리보기입니다(행 구성은 시연용으로 줄임).</div>
+        <div class="cols" style="margin-top:8px"><div class="panel"><h4>초기대응절차 · 비화재보 시</h4><div class="small">가장 가까운 근무자가 확인(2분) → 오작동 기록(시각·감지기 위치) → 복구</div></div><div class="panel"><h4>초기대응절차 · 화재 시</h4><div class="small">전원 임무 카드 → 119 신고 도우미 → 문 닫기·초기소화 → 수평피난 → 남은 분 입력·소방 공유</div></div></div>${changeBox}</div>`;
+      if (S.form === '38') body = `<div class="paper"><div class="fttl">피난보조자 비상연락망</div>
+        <div class="tblwrap"><table class="t"><thead><tr><th>구분</th><th>소속</th><th>근무위치</th><th>보조자</th><th>전화번호</th></tr></thead><tbody>
+        <tr><td>침상째 이동</td><td>요양</td><td>2층 201호</td><td>김○○(+ 비상 호출 임○○)</td><td>010-****-****</td></tr>
+        <tr><td>휠체어</td><td>요양</td><td>2층 202호</td><td>김○○</td><td>010-****-****</td></tr>
+        <tr><td>부축</td><td>요양</td><td>2층 203·204호</td><td>김○○</td><td>010-****-****</td></tr>
+        <tr><td>휠체어·부축</td><td>요양</td><td>1층 102·103호</td><td>윤○○</td><td>010-****-****</td></tr>
+        </tbody></table></div><div class="note" style="margin-top:6px">※ 비고. 최근 업데이트 날짜 : <b>2026년 11월 5일 15:12</b> (근무 변경 때 자동 갱신)</div></div>`;
+      return desk('관리자 · 서식 출력', `
+        <div class="dhead"><h3>소방계획서 서식으로 출력</h3><span class="meta">소방청·한국소방안전원 [의료,보호용도] 소방계획서 서식</span></div>
+        <div class="formhead">${tabs.map(([k, v]) => `<button data-form="${k}" aria-pressed="${S.form === k}">${v}</button>`).join('')}</div>
+        ${body}`);
+    } },
+  { id:'m5', sc:'M', time:'11월 20일(금) 23:10', title:'임무 확인 훈련을 켜면, 응답 시간이 기록부로 남습니다', who:'소방안전관리자 송○○ 화면',
+    what:`<p>관리자의 주기 교육이나 관할 소방서의 불시 소방훈련(법 제37조④) 때 훈련을 켜면, 근무자 휴대폰에 '훈련' 표시와 함께 임무 카드가 뜨고 임무 확인까지 걸린 시간이 기록됩니다.</p><p>결과는 시행규칙 별지 제13호서식 기록부와 장기요양기관 평가 '재난상황대응' 증빙(일자·참가자·내용)으로 출력됩니다. 응답 시간은 근무자 동의를 받아 보관하고 <b>징계·평가에 쓰지 않습니다</b>.</p>`,
+    basis:['화재예방법 제37조④⑤: 노유자 시설 불시 소방훈련·결과 평가(시행령 제39조 3호)','자위소방대 표준운영 매뉴얼(TypeⅠ): 초기대응체계 주기교육(주별), 개인별 훈련참여 이력 관리','2025 장기요양기관 시설급여 평가매뉴얼 Q&A: 지표 11 재난상황대응'],
+    setup(){},
+    render(){
+      const plan = planNight(20);
+      const target = plan.working.map(s => s.id);
+      const R = S.drill.resp;
+      const fmt = s => Math.floor(s / 60) + '분 ' + String(s % 60).padStart(2, '0') + '초';
+      const within = R.filter(r => r.sec <= 120).length;
+      const avg = R.length ? Math.round(R.reduce((a, b) => a + b.sec, 0) / R.length) : 0;
+      return desk('관리자 · 임무 확인 훈련', `
+        <div class="dhead"><h3>야간 임무 확인 훈련 · 11월 20일(금) A조</h3><span class="meta">대상 ${target.length}명 · 근무 중 1분 · 시작 시각은 근무자에게 알리지 않음</span></div>
+        <div class="cols">
+          <div class="panel"><h4>응답</h4>
+            ${target.map(id => { const r = R.find(x => x.id === id); return `<div class="floor ${r && r.sec > 120 ? 'alert' : ''}" style="grid-template-columns:minmax(0,1fr) auto"><span><b>${STAFF[id].name}</b> · ${plan.slots.find(s => s.id === id).label} ${plan.slots.find(s => s.id === id).tasks.join('·')}</span><span class="num" style="font-weight:900">${r ? fmt(r.sec) : (S.drill.running ? '대기…' : '—')}</span></div>`; }).join('')}
+            ${S.drill.done || S.drill.running ? '' : '<button class="btn fire" data-act="drill">훈련 시작</button>'}
+          </div>
+          <div class="panel"><h4>결과</h4>
+            <div class="kpi num">${S.drill.done ? within + '/' + target.length : '—'} <small>2분 안에 임무 확인</small></div>
+            <div class="kpi num" style="font-size:22px">${S.drill.done ? fmt(avg) : '—'} <small>평균 응답</small></div>
+            ${S.drill.done ? `<div class="sysbox" style="font-size:13px"><b>자동 작성됨(시연 값)</b> — 별지 제13호서식 기록부(초기대응 총원 ${target.length} · 참석 ${target.length} · 미참석 0), 평가 증빙(일자·시간·참가자·내용)</div><div class="band" style="font-size:13px"><b>보완·조치(제안)</b>${STAFF[R.find(r => r.sec > 120)?.id || 'kim'].name} 응답 2분 초과 → 다음 근무 출근 때 임무 카드 다시 확인</div>` : '<div class="small">훈련을 시작하면 세 근무자의 응답이 들어옵니다(시연).</div>'}
+          </div>
+        </div>`);
+    } },
+
+  /* ---------- 4. 관할 소방 ---------- */
+  { id:'s1', sc:'S', time:'조사·불시 소방훈련 때(야간 예시)', title:'조사관의 두 질문에, 근무자가 앱으로 바로 답합니다', who:'조사관 질문 · 근무자 휴대폰',
+    what:`<p>조사 현장에서 쓰는 질문 두 개를 앱 화면과 같게 맞춥니다.</p><p>① "지금 불이 나면 선생님 임무는?" → 오늘 임무 카드<br>② "이 층에 혼자 못 걸으시는 분은 몇 분, 어느 방?" → 층별 명단</p><p>서류를 찾는 대신 근무자가 답하고, 조사와 운영이 같은 것을 묻게 됩니다.</p>`,
+    basis:['시행규칙 제11조⑤ 연 1회 이상 편성 상태·초기대응체계 점검','2011 소방방재청: 관계인 자율 안전관리 체제로 전환'],
+    setup(){},
+    render(){
+      const f2 = RES.filter(r => r.floor === 2 && MOB[r.mob].help);
+      return phone('근무자 · 김○○', '20:10', S.q === 1 ? kimCardInner('view', '<button class="btn ghost" data-q="2">질문 ② 보기 ›</button>')
+        : `<div class="appbar"><span class="ttl">2층 · 혼자 못 걸으시는 분</span><span class="chip">${f2.length}명</span></div>
+           <div class="list">${f2.map(r => `<div class="it"><span class="room">${r.room}호</span><div style="font-weight:700">${r.name}</div>${mobTag(r)}</div>`).join('')}</div>
+           <div class="appfoot"><button class="btn ghost" data-q="1">‹ 질문 ① 보기</button></div>`)
+      + desk('조사관 · 임무 숙지 확인(2문항)', `
+        <div class="dhead"><h3>화재안전조사 · 임무 숙지 확인</h3><span class="meta">${esc(FAC.name)}</span></div>
+        <div class="cols">
+          <div class="panel ${S.q === 1 ? '' : ''}" style="${S.q === 1 ? 'border-color:var(--ink)' : ''}"><h4>질문 ①</h4><div style="font-size:17px;font-weight:700">"지금 불이 나면 선생님 임무는?"</div><div class="small">→ 근무자: 앱의 오늘 임무 카드로 답함</div><button class="btn sm" data-q="1">이 질문</button></div>
+          <div class="panel" style="${S.q === 2 ? 'border-color:var(--ink)' : ''}"><h4>질문 ②</h4><div style="font-size:17px;font-weight:700">"이 층에 혼자 못 걸으시는 분은 몇 분, 어느 방?"</div><div class="small">→ 근무자: 층별 명단으로 답함</div><button class="btn sm" data-q="2">이 질문</button></div>
+        </div>`);
+    } },
+  { id:'s2', sc:'S', time:'조사·컨설팅 때', title:'기록 열람 — 서류 대신 행동 기록으로 확인합니다', who:'관할 소방 열람 화면',
+    what:`<p>소방은 링크와 일회용 코드로 시설 기록을 열람합니다. 열람한 기록도 남습니다.</p><p>안전 점수 5지표(임무 인지율·신고 시간·야간 훈련 실시·야간 피난 부담·편성 공백)와 비화재보 기록(확인 2분)이 같은 숫자로 쌓여, 근무자 화면·장기요양 평가 증빙·소방 조사 자료에 함께 쓰입니다.</p>`,
+    basis:['정무헌(2020): 3급 대상물 주기적 훈련 55.8%, 미실시 이유 1위 "훈련방법을 몰라서"(25.0%)','CMS K-712(미국): 소방훈련 분기마다·근무조마다'],
+    setup(){},
+    render(){
+      return desk('관할 소방 · 시설 기록 열람(가상 숫자)', `
+        <div class="dhead"><h3>${esc(FAC.name)} · 최근 3개월</h3><span class="meta">열람 기록 남음 · 참고 정보</span></div>
+        <div class="cols">
+          <div class="panel"><h4>임무 인지율</h4><div class="kpi num">78% <small>훈련 때 2분 안에 임무 확인 7/9명</small></div><div class="bar"><i style="width:78%"></i></div></div>
+          <div class="panel"><h4>신고 시간</h4><div class="kpi num">1분 35초 <small>훈련 평균 · 경보부터 119 신고까지</small></div><div class="small">훈련에서 잰 값</div></div>
+          <div class="panel"><h4>야간 훈련 실시</h4><div class="kpi num">3회 <small>최근 3개월 · 근무조별</small></div><div class="small">분기·근무조별 실시 현황</div></div>
+          <div class="panel"><h4>편성 공백</h4><div class="kpi num">0건 <small>임무 없는 근무조</small></div><div class="small">빈자리 채움 평균 4분</div></div>
+          <div class="panel"><h4>야간 피난 부담</h4><div class="kpi num">5일 <small>기준 3.0명/인 초과한 밤</small></div><div class="small">인력 보강 요청 2건 첨부</div></div>
+          <div class="panel"><h4>비화재보(확인 2분)</h4><div class="kpi num">4건 <small>같은 감지기 3건</small></div><div class="small">1층 식당 감지기 교체 권고</div></div>
+        </div>
+        <div class="note">숫자는 가상 예시입니다. 실제 지표·목표치는 시범 운영 첫 달 기준선을 잰 뒤 정합니다.</div>`);
+    } },
+];
+
+/* 화재 상황판 */
+function fillEntries(){
+  if (S.entries.length >= 3) return;
+  S.entries = [
+    { room:'201', name:'이○○', mob:'bed', time:'04:31', by:'김○○', src:'201호 한 분 침상째, 구조 필요' },
+    { room:'202', name:'박○○', mob:'wheel', time:'04:32', by:'김○○', src:'202호 휠체어 한 분 남았어요' },
+    { room:'203', name:'최○○', mob:'assist', time:'04:33', by:'김○○', src:'203호 부축 필요한 분 한 명 남음' },
+  ];
+}
+function boardInner(fireDept){
+  const f1 = RES.filter(r => r.floor === 1).length, f2 = RES.filter(r => r.floor === 2).length;
+  const left = S.entries.length;
+  return `
+    <div class="dhead"><h3>${fireDept ? '출동 중 · ' : ''}${esc(FAC.name)}</h3><span class="live">${fireDept ? '관계인 화면과 실시간 동기화(시연)' : '관할 소방서와 실시간 공유 중(시연)'}</span></div>
+    <div class="meta small">${esc(FAC.addr)} · 갱신 04:33:12</div>
+    <div class="cols">
+      <div class="panel" style="border-color:var(--fire);background:var(--fire-soft)"><h4>화점</h4><div class="kpi" style="color:var(--fire)">1층 사무실</div><div class="small">04:24 감지기 '화재' · 04:24:40 윤○○ 실제 화재 확인 · 04:25 119 신고</div></div>
+      <div class="panel" style="border-color:var(--fire)"><h4>구조 요함</h4><div class="kpi num" style="color:var(--fire)">${left}명</div><div class="small">2층 ${S.entries.map(e => e.room).join('·')}호</div></div>
+      <div class="panel"><h4>근무자</h4><div class="small">윤○○ · 1층 현관 밖 집결지<br>김○○ · 2층 동편 구획<br>비상 호출: 임○○ 출발 04:26</div></div>
+    </div>
+    <div class="floor"><span class="fl">1층</span><div><b>${f1}/${f1} 밖으로 대피</b><div class="small">04:30 윤○○ 입력 · 현관 밖 집결지</div></div><span class="chip ok">완료</span></div>
+    <div class="floor alert"><span class="fl">2층</span><div><b>${left}명 남음</b> · 동편 구획에 ${f2 - left}명 대기(수평피난)<div class="small">서편 복도 방화문 닫힘 04:27</div></div><span class="chip fire">구조 요함</span></div>
+    <div class="panel"><h4>2층 남은 분 ${left}명 ${fireDept ? '(눌러서 펼친 상태)' : ''}</h4>
+      <div class="list">${S.entries.map(e => `<div class="it"><span class="room">${e.room}호</span><div><b>${e.name}</b><div class="small">${e.time} ${e.by} 입력</div></div><span class="mob ${e.mob}">${MOB[e.mob].label}</span></div>`).join('')}</div></div>
+    ${fireDept ? '<div class="note">진입 참고: 2층 서편 계단 쪽 연기 유입 우려 · 동편 계단으로 동편 구획 접근 가능(시설 피난계획 기준, 가상)</div>' : ''}`;
+}
+
+/* ===================== 렌더링·라우팅 ===================== */
+let cur = 0, timer = null;
+const idx = id => STEPS.findIndex(s => s.id === id);
+function renderTabs(){
+  $('#tabs').innerHTML = Object.entries(SCEN).map(([k, v]) => `<button class="tab" role="tab" aria-selected="${STEPS[cur].sc === k}" data-sc="${k}"><span class="n">${v.n}</span>${v.name}</button>`).join('');
+}
+function render(){
+  const st = STEPS[cur]; const sc = SCEN[st.sc];
+  const same = STEPS.filter(s => s.sc === st.sc);
+  $('#guide').innerHTML = `
+    <div class="steps">${same.map((s, i) => `<button class="stepdot" data-go="${s.id}" ${s.id === st.id ? 'aria-current="step"' : ''}>${sc.n}-${i + 1}</button>`).join('')}</div>
+    <div><div class="time">${esc(st.time)}</div><h2>${esc(st.title)}</h2><div class="who">${esc(st.who)}</div></div>
+    <div class="what">${st.what}</div>
+    <div class="basis"><b>근거 · 서식</b>${st.basis.map(b => `<span>· ${esc(b)}</span>`).join('')}</div>
+    <div class="legend"><span><i class="sw sys"></i>시스템(AI·규칙)이 한 일</span><span><i class="sw hum"></i>사람이 하는 일</span><span><i class="sw chg"></i>오늘 바뀐 것</span><span><i class="sw fir"></i>화재·경고</span></div>
+    <div class="nav"><button data-nav="-1" ${cur === 0 ? 'disabled' : ''}>‹ 이전</button><button class="next" data-nav="1" ${cur === STEPS.length - 1 ? 'disabled' : ''}>다음 ›</button></div>`;
+  $('#devices').innerHTML = st.render();
+  renderTabs();
+  clearInterval(timer);
+  if (st.id === 'f1' && !S.realFire){
+    let left = 120; const el = $('#cdown');
+    timer = setInterval(() => { left -= 1; if (!el.isConnected){ clearInterval(timer); return; } el.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'); if (left <= 0){ clearInterval(timer); toast('2분 무응답 → 전원 임무 카드가 켜집니다'); go('f2'); } }, 1000);
+  }
+  const thr = $('#thr'); if (thr) thr.addEventListener('change', e => { S.threshold = +e.target.value; render(); const n = $('#thr'); if (n) n.focus(); });
+}
+function go(id, push = true){
+  const i = idx(id); if (i < 0) return;
+  cur = i; STEPS[cur].setup && STEPS[cur].setup();
+  if (push){ try { if (location.hash !== '#' + id) history.replaceState(null, '', '#' + id); } catch(e) {} }
+  render();
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t) return;
+  if (t.dataset.go){ go(t.dataset.go); return; }
+  if (t.dataset.nav){ const n = Math.min(STEPS.length - 1, Math.max(0, cur + (+t.dataset.nav))); go(STEPS[n].id); return; }
+  if (t.dataset.sc){ go(STEPS.find(s => s.sc === t.dataset.sc).id); return; }
+  if (t.dataset.day){ S.selDay = +t.dataset.day; render(); return; }
+  if (t.dataset.adjust){ S.adjusted[S.selDay] = t.dataset.adjust; toast(STAFF[t.dataset.adjust].name + ' 님을 2층 짝으로 추가 · 다시 계산했습니다'); render(); return; }
+  if (t.dataset.unadjust){ delete S.adjusted[+t.dataset.unadjust]; render(); return; }
+  if (t.dataset.cap){ S.cap = t.dataset.cap; toast('체력 신고를 바꿨습니다: ' + CAP[S.cap]); render(); return; }
+  if (t.dataset.form){ S.form = t.dataset.form; render(); return; }
+  if (t.dataset.q){ S.q = +t.dataset.q; render(); return; }
+  if (t.dataset.say){ S.draft = { ...parseUtterance(t.dataset.say), src: t.dataset.say }; render(); return; }
+  const act = t.dataset.act;
+  if (act === 'accept'){ S.accepted = true; toast('수락 · 15:12 · 임무 카드가 갱신됐습니다'); render(); }
+  else if (act === 'decline'){ toast('다음 후보에게 넘깁니다(시연에서는 김○○ 수락으로 진행)'); }
+  else if (act === 'checkin'){ S.checkedIn = true; go('w3'); }
+  else if (act === 'confirm'){ S.confirmed = true; toast('임무 확인 기록됨 · 19:52'); render(); }
+  else if (act === 'speak'){ try { if (!('speechSynthesis' in window)) { toast('이 브라우저는 읽어 주기를 지원하지 않습니다'); return; } const u = new SpeechSynthesisUtterance(KIM_SPEECH); u.lang = 'ko-KR'; u.rate = 0.95; speechSynthesis.cancel(); speechSynthesis.speak(u); toast('카드를 읽어 드립니다'); } catch(err) { toast('읽어 주기를 시작하지 못했습니다'); } }
+  else if (act === 'realfire'){ S.realFire = true; clearInterval(timer); go('f2'); }
+  else if (act === 'falsealarm'){ clearInterval(timer); toast('오작동이면 서식 1.10.3 이력에 기록하고 끝납니다. 이 시연은 실제 화재 상황이라 다음 화면으로 넘어갑니다'); setTimeout(() => { if (STEPS[cur].id === 'f1'){ S.realFire = true; go('f2'); } }, 1800); }
+  else if (act === 'talk'){
+    const samples = ['201호 한 분 침상째, 구조 필요','202호 휠체어 한 분 남았어요','203호 부축 필요한 분 한 명 남음'];
+    const next = samples.find(s => !S.entries.some(e => e.src === s)); if (!next) return;
+    S.voiceBusy = true; render();
+    setTimeout(() => { S.voiceBusy = false; S.draft = { ...parseUtterance(next), src: next }; render(); }, 1200);
+  }
+  else if (act === 'typed'){ const v = ($('#sayInput') || {}).value || ''; if (!v.trim()){ toast('문장을 입력해 주세요'); return; } S.draft = { ...parseUtterance(v), src: v }; render(); }
+  else if (act === 'send'){ const d = S.draft; if (!d || !d.room || !d.known) return;
+    const times = ['04:31','04:32','04:33','04:34','04:35'];
+    const person = d.person || RES.find(r => r.room === d.room && MOB[r.mob].help) || { name:'(이름 확인 필요)', mob: d.mob || 'assist' };
+    S.entries.push({ room:d.room, name:person.name, mob:d.mob || person.mob, time:times[Math.min(S.entries.length, 4)], by:'김○○', src:d.src });
+    S.draft = null; toast(d.room + '호 입력 · 관계인·소방 화면에 올라갔습니다'); render(); }
+  else if (act === 'redo'){ S.draft = null; render(); }
+  else if (act === 'fixparse'){ S.parseFixed = true; toast('두 칸을 확인했습니다: 문○○ 10일 야간, 배○○ 12일 주간'); render(); }
+  else if (act === 'drill'){
+    S.drill = { running:true, done:false, resp:[] }; render();
+    const plan = planNight(20); const secs = { yoon:38, han:65, kim:162 };
+    plan.working.forEach((s, i) => setTimeout(() => { S.drill.resp.push({ id:s.id, sec:secs[s.id] || 90 }); if (S.drill.resp.length === plan.working.length){ S.drill.running = false; S.drill.done = true; } if (STEPS[cur].id === 'm5') render(); }, 700 * (i + 1)));
+  }
+  else if (act === 'noop'){ toast('시연에서는 이 버튼을 생략합니다'); }
+});
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input')) return;
+  if (e.key === 'ArrowRight'){ const n = Math.min(STEPS.length - 1, cur + 1); go(STEPS[n].id); }
+  if (e.key === 'ArrowLeft'){ const n = Math.max(0, cur - 1); go(STEPS[n].id); }
+});
+window.addEventListener('hashchange', () => { const id = location.hash.slice(1); if (id && idx(id) >= 0 && STEPS[cur].id !== id) go(id, false); });
+(function start(){ const id = location.hash.slice(1); go(id && idx(id) >= 0 ? id : 'w1', false); })();
+</script>
+
+</body></html>
